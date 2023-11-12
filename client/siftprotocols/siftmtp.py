@@ -15,10 +15,13 @@ class SiFT_MTP:
 		self.version_major = 1
 		self.version_minor = 0
 		self.msg_hdr_ver = b'\x01\x00'
-		self.size_msg_hdr = 6
+		self.size_msg_hdr = 16
 		self.size_msg_hdr_ver = 2
 		self.size_msg_hdr_typ = 2
 		self.size_msg_hdr_len = 2
+		self.size_msg_hdr_sqn = 2
+		self.size_msg_hdr_rnd = 6
+		self.size_msg_hdr_rsv = 2
 		self.type_login_req =    b'\x00\x00'
 		self.type_login_res =    b'\x00\x10'
 		self.type_command_req =  b'\x01\x00'
