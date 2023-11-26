@@ -25,6 +25,7 @@ class SiFT_LOGIN:
 
     # sets user passwords dictionary (to be used by the server)
     def set_server_users(self, users):
+        print("in set_server_users")
         self.server_users = users
 
 
@@ -71,7 +72,7 @@ class SiFT_LOGIN:
 
     # handles login process (to be used by the server)
     def handle_login_server(self):
-
+        print("in handle_login_server()")
         if not self.server_users:
             raise SiFT_LOGIN_Error('User database is required for handling login at server')
 

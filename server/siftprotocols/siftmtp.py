@@ -72,7 +72,7 @@ class SiFT_MTP:
 
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_msg(self):
-
+		print("in receive_msg()")
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:

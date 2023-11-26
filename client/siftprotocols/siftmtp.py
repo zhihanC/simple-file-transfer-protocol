@@ -113,6 +113,7 @@ class SiFT_MTP:
 
 	# sends all bytes provided via the peer socket
 	def send_bytes(self, bytes_to_send):
+		print("in send_bytes()")
 		try:
 			self.peer_socket.sendall(bytes_to_send)
 		except:
@@ -121,7 +122,7 @@ class SiFT_MTP:
 
 	# builds and sends message of a given type using the provided payload
 	def send_msg(self, msg_type, msg_payload):
-		
+		print("in send_msg()")
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload)
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')

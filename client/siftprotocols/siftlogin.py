@@ -30,7 +30,7 @@ class SiFT_LOGIN:
 
     # builds a login request from a dictionary
     def build_login_req(self, login_req_struct):
-
+        print("in build_login_req()")
         login_req_str = login_req_struct['username']
         login_req_str += self.delimiter + login_req_struct['password'] 
         return login_req_str.encode(self.coding)
@@ -133,7 +133,7 @@ class SiFT_LOGIN:
 
     # handles login process (to be used by the client)
     def handle_login_client(self, username, password):
-
+        print("in handle_login_client()")
         # building a login request
         login_req_struct = {}
         login_req_struct['username'] = username
