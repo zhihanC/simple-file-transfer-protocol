@@ -1,6 +1,16 @@
 #python3
-
+import sys, getopt, getpass
 import socket
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto import Random
+
+from base64 import b64encode, b64decode
+from Crypto.Cipher import AES
+from Crypto.Signature import pss
+from Crypto.PublicKey import RSA
+from Crypto.Hash import SHA256
+from Crypto.Util import Padding
+
 
 class SiFT_MTP_Error(Exception):
 
@@ -46,10 +56,10 @@ class SiFT_MTP:
 		parsed_msg_hdr, i = {}, 0
 		parsed_msg_hdr['ver'], i = msg_hdr[i:i+self.size_msg_hdr_ver], i+self.size_msg_hdr_ver 
 		parsed_msg_hdr['typ'], i = msg_hdr[i:i+self.size_msg_hdr_typ], i+self.size_msg_hdr_typ
-		parsed_msg_hdr['len'] = msg_hdr[i:i+self.size_msg_hdr_len], i+self.size_msg_hdr_len
-		parsed_msg_hdr['sqn'] = msg_hdr[i:i+self.size_msg_hdr_sqn], i+self.size_msg_hdr_sqn
-		parsed_msg_hdr['rnd'] = msg_hdr[i:i+self.size_msg_hdr_rnd], i+self.size_msg_hdr_rnd
-		parsed_msg_hdr['rsv'] = msg_hdr[i:i+self.size_msg_hdr_rsv], i+self.size_msg_hdr_rsv
+		parsed_msg_hdr['len'], i = msg_hdr[i:i+self.size_msg_hdr_len], i+self.size_msg_hdr_len
+		parsed_msg_hdr['sqn'], i = msg_hdr[i:i+self.size_msg_hdr_sqn], i+self.size_msg_hdr_sqn
+		parsed_msg_hdr['rnd'], i = msg_hdr[i:i+self.size_msg_hdr_rnd], i+self.size_msg_hdr_rnd
+		parsed_msg_hdr['rsv'], i = msg_hdr[i:i+self.size_msg_hdr_rsv], i+self.size_msg_hdr_rsv
 		return parsed_msg_hdr
 
 
@@ -144,3 +154,56 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
 
+	# builds and sends login message using the provided payload
+	def send_login_msg(self, msg_type, msg_payload):
+		print("in send_login_msg()")
+
+		# initailizing values for login request
+		temp_key = Random.get_random_bytes(32)
+
+		msg_hdr_sqn = b'\x00\x01'
+		msg_hdr_rnd = Random.get_random_bytes(6)
+		msg_hdr_rsv = b'\x00\x00'
+
+		# build message
+		msg_size = self.size_msg_hdr + len(msg_payload) + 12 + 256
+		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + msg_hdr_rsv
+
+		# encrypt message using AES in GCM mode
+		nonce = msg_hdr_sqn + msg_hdr_rnd
+		authtag_length = 12
+		AE = AES.new(temp_key, AES.MODE_GCM, nonce=nonce, mac_len=authtag_length)
+		AE.update(msg_hdr)
+		encrypted_payload, authtag = AE.encrypt_and_digest(msg_payload)
+
+		# encrypt the temporary key using RSA-OAEP with a 2048-bit RSA public key
+
+		pubkey = RSA.importKey(open('siftprotocols/server_pubkey.pem').read())
+	
+		RSAcipher = PKCS1_OAEP.new(pubkey)
+
+		encrypted_temp_key = RSAcipher.encrypt(temp_key)
+
+		print("successfully read pubkey")
+		print(pubkey)
+		
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message to send (' + str(msg_size) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('EPD (' + str(len(encrypted_payload)) + '): ')
+			print(encrypted_payload.hex())
+			print('MAC (' + str(len(authtag)) + '): ')
+			print(authtag.hex())
+			print('ETK (' + str(len(encrypted_temp_key)) + '): ')
+			print(encrypted_temp_key.hex())
+			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag) + len(encrypted_temp_key)}")
+			print('------------------------------------------')
+		# DEBUG 
+
+		# try to send
+		try:
+			self.send_bytes(msg_hdr + encrypted_payload + authtag + encrypted_temp_key)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
