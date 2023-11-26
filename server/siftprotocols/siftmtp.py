@@ -1,6 +1,16 @@
 #python3
 
+import sys, getopt, getpass
 import socket
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto import Random
+
+from base64 import b64encode, b64decode
+from Crypto.Cipher import AES
+from Crypto.Signature import pss
+from Crypto.PublicKey import RSA
+from Crypto.Hash import SHA256
+from Crypto.Util import Padding
 
 class SiFT_MTP_Error(Exception):
 
@@ -109,6 +119,98 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Incomplete message body reveived')
 
 		return parsed_msg_hdr['typ'], msg_body
+
+	# receives and parses message, returns msg_type and msg_payload
+	def receive_login_msg(self):
+		print("in receive_login_msg()")
+		try:
+			msg_hdr = self.receive_bytes(self.size_msg_hdr)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message header --> ' + e.err_msg)
+
+		if len(msg_hdr) != self.size_msg_hdr: 
+			raise SiFT_MTP_Error('Incomplete message header received')
+		
+		parsed_msg_hdr = self.parse_msg_header(msg_hdr)
+
+		if parsed_msg_hdr['ver'] != self.msg_hdr_ver:
+			raise SiFT_MTP_Error('Unsupported version found in message header')
+
+		if parsed_msg_hdr['typ'] not in self.msg_types:
+			raise SiFT_MTP_Error('Unknown message type found in message header')
+
+		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
+
+		try:
+			encrypted_payload = self.receive_bytes(msg_len - (self.size_msg_hdr + 12 + 256))
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+		
+		try:
+			authtag = self.receive_bytes(12)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+		
+		try:
+			encrypted_temp_key = self.receive_bytes(256)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+
+		# loads the server's private key to decrypt the temporary key of the login req
+		def load_keypair(privkeyfile):
+			passphrase = "crysys"
+			with open(privkeyfile, 'rb') as f:
+					keypairstr = f.read()
+			try:
+					return RSA.import_key(keypairstr, passphrase=passphrase)
+			except ValueError:
+					print('Error: Cannot import private key from file ' + privkeyfile)
+					sys.exit(1)
+
+		keypair = load_keypair('siftprotocols/server_privkey.pem')
+
+		RSAcipher = PKCS1_OAEP.new(keypair)
+
+		temp_key = RSAcipher.decrypt(encrypted_temp_key)
+
+		print("successfully read privkey")
+		print(keypair)
+
+		# decrypting the encrypted payload with the temp_key
+		print("Decryption and authentication tag verification is attempted...")
+		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+		AE = AES.new(temp_key, AES.MODE_GCM, nonce=nonce, mac_len=12)
+		AE.update(msg_hdr)
+		try:
+				payload = AE.decrypt_and_verify(encrypted_payload, authtag)
+		except Exception as e:
+				print("Error: Operation failed!")
+				print("Processing completed.")
+				sys.exit(1)
+		print("Operation was successful: message is intact, content is decrypted.")
+
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message received (' + str(msg_len) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('EPD (' + str(len(encrypted_payload)) + '): ')
+			print(encrypted_payload.hex())
+			print('MAC (' + str(len(authtag)) + '): ')
+			print(authtag.hex())
+			print('ETK (' + str(len(encrypted_temp_key)) + '): ')
+			print(encrypted_temp_key.hex())
+			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag) + len(encrypted_temp_key)}")
+			print('------------------------------------------')
+		# DEBUG 
+
+		if len(encrypted_payload) != msg_len - (self.size_msg_hdr + 12 + 256): 
+			raise SiFT_MTP_Error('Incomplete message body reveived')
+
+		return parsed_msg_hdr['typ'], payload
+
+
+
+
 
 
 	# sends all bytes provided via the peer socket

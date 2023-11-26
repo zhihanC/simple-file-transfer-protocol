@@ -78,7 +78,7 @@ class SiFT_LOGIN:
 
         # trying to receive a login request
         try:
-            msg_type, msg_payload = self.mtp.receive_msg()
+            msg_type, msg_payload = self.mtp.receive_login_msg()
         except SiFT_MTP_Error as e:
             raise SiFT_LOGIN_Error('Unable to receive login request --> ' + e.err_msg)
 
