@@ -2,7 +2,7 @@
 
 import time
 from Crypto.Hash import SHA256
-from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Protocol.KDF import PBKDF2, HKDF
 from siftprotocols.siftmtp import SiFT_MTP, SiFT_MTP_Error
 from Crypto import Random
 
@@ -144,11 +144,23 @@ class SiFT_LOGIN:
         # DEBUG 
         if self.DEBUG:
             print('User ' + login_req_struct['username'] + ' logged in')
-        # DEBUG 
+        
+        # all checks passed: compute a 32 byte final transfer key for the MTP protocol
+        client_random = bytes.fromhex(login_req_struct['client_random'])
 
+        init_key_material = client_random + login_res_struct['server_random']
+
+        salt = request_hash
+
+        key = HKDF(init_key_material, 32, salt, SHA256, 1)
+
+        print(f"Final transfer key is: {key}")
+
+        # return key
+    
         return login_req_struct['username']
-
-
+    
+    
     # handles login process (to be used by the client)
     def handle_login_client(self, username, password):
 
