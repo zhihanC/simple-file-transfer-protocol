@@ -25,7 +25,7 @@ class Server:
 
 
     def load_users(self, usersfile):
-        print("in load_users()")
+        print("Loading users ... load_users()")
         users = {}
         with open(usersfile, 'rb') as f:
             allrecords = f.read().decode(self.server_usersfile_coding)
@@ -43,14 +43,14 @@ class Server:
 
 
     def accept_connections(self):
-        print("in accept_connections()")
+        print("Accepting connections ... accept_connections()")
         while True:
             client_socket, addr = self.server_socket.accept()
             threading.Thread(target=self.handle_client, args=(client_socket, addr, )).start()
 
 
     def handle_client(self, client_socket, addr):
-        print("in handle_client()")
+        print("Handling client ... handle_client()")
         print('New client on ' + addr[0] + ':' + str(addr[1]))
 
         mtp = SiFT_MTP(client_socket)
@@ -66,7 +66,7 @@ class Server:
             print('Closing connection with client on ' + addr[0] + ':' + str(addr[1]))
             client_socket.close()
             return
-
+        ###
         cmdp = SiFT_CMD(mtp)
         cmdp.set_server_rootdir(self.server_rootdir)
         cmdp.set_user_rootdir(users[user]['rootdir'])
@@ -83,5 +83,5 @@ class Server:
 
 # main
 if __name__ == '__main__':
-    print("in server()")
+    print("Starting server ... Server()")
     server = Server()

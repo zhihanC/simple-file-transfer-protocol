@@ -63,9 +63,16 @@ class SiFT_MTP:
 		return parsed_msg_hdr
 
 
+	# sends all bytes provided via the peer socket
+	def send_bytes(self, bytes_to_send):
+		try:
+			self.peer_socket.sendall(bytes_to_send)
+		except:
+			raise SiFT_MTP_Error('Unable to send via peer socket')
+
+
 	# receives n bytes from the peer socket
 	def receive_bytes(self, n):
-
 		bytes_received = b''
 		bytes_count = 0
 		while bytes_count < n:
@@ -78,6 +85,30 @@ class SiFT_MTP:
 			bytes_received += chunk
 			bytes_count += len(chunk)
 		return bytes_received
+
+
+	# builds and sends message of a given type using the provided payload
+	def send_msg(self, msg_type, msg_payload):
+		
+		# build message
+		msg_size = self.size_msg_hdr + len(msg_payload)
+		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
+
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message to send (' + str(msg_size) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('BDY (' + str(len(msg_payload)) + '): ')
+			print(msg_payload.hex())
+			print('------------------------------------------')
+		# DEBUG 
+
+		# try to send
+		try:
+			self.send_bytes(msg_hdr + msg_payload)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
 
 	# receives and parses message, returns msg_type and msg_payload
@@ -123,7 +154,7 @@ class SiFT_MTP:
 
 	# receives and parses message, returns msg_type and msg_payload
 	def receive_login_req(self):
-		print("in receive_login_req()")
+		print("Receiving login req from client ... receive_login_req()")
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
@@ -174,18 +205,14 @@ class SiFT_MTP:
 
 		temp_key = RSAcipher.decrypt(encrypted_temp_key)
 
-		print("successfully read privkey")
-		print(keypair)
-
 		# decrypting the encrypted payload with the temp_key
-		print("Decryption and authentication tag verification is attempted...")
 		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
 		AE = AES.new(temp_key, AES.MODE_GCM, nonce=nonce, mac_len=12)
 		AE.update(msg_hdr)
 		try:
 				payload = AE.decrypt_and_verify(encrypted_payload, authtag)
 		except Exception as e:
-				print("Error: Operation failed!")
+				print("Error: Decrypting the login request failed!")
 				print("Processing completed.")
 				sys.exit(1)
 		print("Operation was successful: message is intact, content is decrypted.")
@@ -200,7 +227,6 @@ class SiFT_MTP:
 			print(authtag.hex())
 			print('ETK (' + str(len(encrypted_temp_key)) + '): ')
 			print(encrypted_temp_key.hex())
-			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag) + len(encrypted_temp_key)}")
 			print('------------------------------------------')
 		# DEBUG 
 
@@ -210,40 +236,9 @@ class SiFT_MTP:
 		return parsed_msg_hdr['typ'], payload, temp_key
 
 
-	# sends all bytes provided via the peer socket
-	def send_bytes(self, bytes_to_send):
-		try:
-			self.peer_socket.sendall(bytes_to_send)
-		except:
-			raise SiFT_MTP_Error('Unable to send via peer socket')
-
-
-	# builds and sends message of a given type using the provided payload
-	def send_msg(self, msg_type, msg_payload):
-		
-		# build message
-		msg_size = self.size_msg_hdr + len(msg_payload)
-		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
-
-		# DEBUG 
-		if self.DEBUG:
-			print('MTP message to send (' + str(msg_size) + '):')
-			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print(msg_payload.hex())
-			print('------------------------------------------')
-		# DEBUG 
-
-		# try to send
-		try:
-			self.send_bytes(msg_hdr + msg_payload)
-		except SiFT_MTP_Error as e:
-			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-
 	# builds the login res with the provided information from the server
 	def send_login_res(self, msg_type, msg_payload, key):
-		print("in send_login_res()")
+		print("Sending login response ... send_login_res()")
 
 		# initailizing values for login response
 		msg_hdr_sqn = b'\x00\x01'
@@ -270,7 +265,6 @@ class SiFT_MTP:
 			print(encrypted_payload.hex())
 			print('MAC (' + str(len(authtag)) + '): ')
 			print(authtag.hex())
-			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag)}")
 			print('------------------------------------------')
 
 		# try to send

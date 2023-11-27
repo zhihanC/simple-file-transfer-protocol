@@ -63,6 +63,14 @@ class SiFT_MTP:
 		return parsed_msg_hdr
 
 
+	# sends all bytes provided via the peer socket
+	def send_bytes(self, bytes_to_send):
+		try:
+			self.peer_socket.sendall(bytes_to_send)
+		except:
+			raise SiFT_MTP_Error('Unable to send via peer socket')
+
+
 	# receives n bytes from the peer socket
 	def receive_bytes(self, n):
 
@@ -78,6 +86,30 @@ class SiFT_MTP:
 			bytes_received += chunk
 			bytes_count += len(chunk)
 		return bytes_received
+
+
+	# builds and sends message of a given type using the provided payload
+	def send_msg(self, msg_type, msg_payload):
+
+		# build message
+		msg_size = self.size_msg_hdr + len(msg_payload)
+		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
+
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message to send (' + str(msg_size) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('BDY (' + str(len(msg_payload)) + '): ')
+			print(msg_payload.hex())
+			print('------------------------------------------')
+		# DEBUG 
+
+		# try to send
+		try:
+			self.send_bytes(msg_hdr + msg_payload)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
 
 	# receives and parses message, returns msg_type and msg_payload
@@ -121,42 +153,9 @@ class SiFT_MTP:
 		return parsed_msg_hdr['typ'], msg_body
 
 
-	# sends all bytes provided via the peer socket
-	def send_bytes(self, bytes_to_send):
-		print("in send_bytes()")
-		try:
-			self.peer_socket.sendall(bytes_to_send)
-		except:
-			raise SiFT_MTP_Error('Unable to send via peer socket')
-
-
-	# builds and sends message of a given type using the provided payload
-	def send_msg(self, msg_type, msg_payload):
-		print("in send_msg()")
-		# build message
-		msg_size = self.size_msg_hdr + len(msg_payload)
-		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
-
-		# DEBUG 
-		if self.DEBUG:
-			print('MTP message to send (' + str(msg_size) + '):')
-			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print(msg_payload.hex())
-			print('------------------------------------------')
-		# DEBUG 
-
-		# try to send
-		try:
-			self.send_bytes(msg_hdr + msg_payload)
-		except SiFT_MTP_Error as e:
-			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
-
-
 	# builds and sends login message using the provided payload
 	def send_login_req(self, msg_type, msg_payload):
-		print("in send_login_req()")
+		print("Sending login request ... send_login_req()")
 
 		# initailizing values for login request
 		temp_key = Random.get_random_bytes(32)
@@ -213,7 +212,7 @@ class SiFT_MTP:
 	
 	# receives the login response sent by the server
 	def receive_login_res(self, key):
-		print("in receive_login_res()")
+		print("Receiving login response ... receive_login_res()")
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:
@@ -261,6 +260,8 @@ class SiFT_MTP:
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
 			print('BDY (' + str(len(encrypted_payload)) + '): ')
 			print(encrypted_payload.hex())
+			print('MAC (' + str(len(authtag)) + '): ')
+			print(authtag.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
