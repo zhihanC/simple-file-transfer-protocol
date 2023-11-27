@@ -158,7 +158,9 @@ class SiFT_LOGIN:
 
         print(f"Final transfer key is: {key}")
 
-        # return key
+        self.mtp.set_key(key)
+
+        print(f"After setting the key, the key stored in mtp is: {self.mtp.final_key}")
     
         return login_req_struct['username']
     
