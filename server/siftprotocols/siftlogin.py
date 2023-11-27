@@ -103,6 +103,17 @@ class SiFT_LOGIN:
 
         login_req_struct = self.parse_login_req(msg_payload)
 
+        # checking if login req timestamp is valid
+        current_time = time.time_ns()
+        login_req_timestamp = int(login_req_struct['timestamp'])
+        print(f"Login Req Timestamp: {login_req_timestamp}")
+        print(f"Server Current Time: {current_time}")
+
+        if login_req_timestamp < current_time - 1000000000:
+            raise SiFT_LOGIN_Error('Timestamp is too old')
+        elif login_req_timestamp > current_time + 1000000000:
+            raise SiFT_LOGIN_Error('Timestamp is too fresh')
+
         # checking username and password
         if login_req_struct['username'] in self.server_users:
             if not self.check_password(login_req_struct['password'], self.server_users[login_req_struct['username']]):
