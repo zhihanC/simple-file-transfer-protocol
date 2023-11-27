@@ -157,7 +157,7 @@ class SiFT_LOGIN:
 
         # trying to send login request
         try:
-            self.mtp.send_login_req(self.mtp.type_login_req, msg_payload)
+            temp_key = self.mtp.send_login_req(self.mtp.type_login_req, msg_payload)
         except SiFT_MTP_Error as e:
             raise SiFT_LOGIN_Error('Unable to send login request --> ' + e.err_msg)
 
@@ -168,7 +168,7 @@ class SiFT_LOGIN:
 
         # trying to receive a login response
         try:
-            msg_type, msg_payload = self.mtp.receive_msg()
+            msg_type, msg_payload = self.mtp.receive_login_res(temp_key)
         except SiFT_MTP_Error as e:
             raise SiFT_LOGIN_Error('Unable to receive login response --> ' + e.err_msg)
 
@@ -190,7 +190,7 @@ class SiFT_LOGIN:
             raise SiFT_LOGIN_Error('Verification of login response failed')
 
         # all checks passed: compute a 32 byte final transfer key for the MTP protocol
-        server_random = bytes.fromhex(login_res_struct['server_random'])
+        server_random = login_res_struct['server_random']
         
         init_key_material = login_req_struct['client_random'] + server_random
 

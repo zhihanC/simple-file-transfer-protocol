@@ -208,8 +208,11 @@ class SiFT_MTP:
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
+		# must pass the temp key used to encrypt login req for decrypting login res later
+		return temp_key
+	
 	# receives the login response sent by the server
-	def receive_login_res(self):
+	def receive_login_res(self, key):
 		print("in receive_login_res()")
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
@@ -228,22 +231,40 @@ class SiFT_MTP:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
-
+		
 		try:
-			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
+			encrypted_payload = self.receive_bytes(msg_len - (self.size_msg_hdr + 12))
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+		
+		try:
+			authtag = self.receive_bytes(12)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+		
+		# decrypting the encrypted payload with the temp_key
+		print("Decryption and authentication tag verification is attempted...")
+		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+		AE = AES.new(key, AES.MODE_GCM, nonce=nonce, mac_len=12)
+		AE.update(msg_hdr)
+		try:
+				payload = AE.decrypt_and_verify(encrypted_payload, authtag)
+		except Exception as e:
+				print("Error: Operation failed!")
+				print("Processing completed.")
+				sys.exit(1)
+		print("Operation was successful: message is intact, content is decrypted.")
 
 		# DEBUG 
 		if self.DEBUG:
 			print('MTP message received (' + str(msg_len) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_body)) + '): ')
-			print(msg_body.hex())
+			print('BDY (' + str(len(encrypted_payload)) + '): ')
+			print(encrypted_payload.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
-		if len(msg_body) != msg_len - self.size_msg_hdr: 
+		if len(payload) != msg_len - (self.size_msg_hdr + 12): 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
 
-		return parsed_msg_hdr['typ'], msg_body
+		return parsed_msg_hdr['typ'], payload
