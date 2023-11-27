@@ -155,8 +155,8 @@ class SiFT_MTP:
 
 
 	# builds and sends login message using the provided payload
-	def send_login_msg(self, msg_type, msg_payload):
-		print("in send_login_msg()")
+	def send_login_req(self, msg_type, msg_payload):
+		print("in send_login_req()")
 
 		# initailizing values for login request
 		temp_key = Random.get_random_bytes(32)
@@ -207,3 +207,43 @@ class SiFT_MTP:
 			self.send_bytes(msg_hdr + encrypted_payload + authtag + encrypted_temp_key)
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
+
+	# receives the login response sent by the server
+	def receive_login_res(self):
+		print("in receive_login_res()")
+		try:
+			msg_hdr = self.receive_bytes(self.size_msg_hdr)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message header --> ' + e.err_msg)
+
+		if len(msg_hdr) != self.size_msg_hdr: 
+			raise SiFT_MTP_Error('Incomplete message header received')
+		
+		parsed_msg_hdr = self.parse_msg_header(msg_hdr)
+
+		if parsed_msg_hdr['ver'] != self.msg_hdr_ver:
+			raise SiFT_MTP_Error('Unsupported version found in message header')
+
+		if parsed_msg_hdr['typ'] not in self.msg_types:
+			raise SiFT_MTP_Error('Unknown message type found in message header')
+
+		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
+
+		try:
+			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+
+		# DEBUG 
+		if self.DEBUG:
+			print('MTP message received (' + str(msg_len) + '):')
+			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
+			print('BDY (' + str(len(msg_body)) + '): ')
+			print(msg_body.hex())
+			print('------------------------------------------')
+		# DEBUG 
+
+		if len(msg_body) != msg_len - self.size_msg_hdr: 
+			raise SiFT_MTP_Error('Incomplete message body reveived')
+
+		return parsed_msg_hdr['typ'], msg_body

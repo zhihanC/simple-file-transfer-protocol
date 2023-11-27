@@ -82,7 +82,7 @@ class SiFT_LOGIN:
 
         # trying to receive a login request
         try:
-            msg_type, msg_payload = self.mtp.receive_login_msg()
+            msg_type, msg_payload, temp_key = self.mtp.receive_login_req()
         except SiFT_MTP_Error as e:
             raise SiFT_LOGIN_Error('Unable to receive login request --> ' + e.err_msg)
 
@@ -120,6 +120,8 @@ class SiFT_LOGIN:
                 raise SiFT_LOGIN_Error('Password verification failed')
         else:
             raise SiFT_LOGIN_Error('Unkown user attempted to log in')
+        
+        # user is confirmed and validated at this point
 
         # building login response
         login_res_struct = {}
@@ -137,7 +139,7 @@ class SiFT_LOGIN:
 
         # sending login response
         try:
-            self.mtp.send_msg(self.mtp.type_login_res, msg_payload)
+            self.mtp.send_login_res(self.mtp.type_login_res, msg_payload, temp_key)
         except SiFT_MTP_Error as e:
             raise SiFT_LOGIN_Error('Unable to send login response --> ' + e.err_msg)
 
@@ -160,7 +162,7 @@ class SiFT_LOGIN:
     
         return login_req_struct['username']
     
-    
+
     # handles login process (to be used by the client)
     def handle_login_client(self, username, password):
 
