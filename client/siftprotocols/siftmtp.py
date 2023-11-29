@@ -49,6 +49,8 @@ class SiFT_MTP:
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 		self.final_key = bytes()
+		self.msg_sqn = 1
+		self.last_receieved_sqn = 0
 
 
 	# parses a message header and returns a dictionary containing the header fields
@@ -89,11 +91,12 @@ class SiFT_MTP:
 		return bytes_received
 
 
-	# builds and sends message of a given type using the provided payload
+	# builds and sends message of a given type using the provided payload 
+	# (only used after login protocol)
 	def send_msg(self, msg_type, msg_payload):
 
 		# build message
-		msg_size = self.size_msg_hdr + len(msg_payload)
+		msg_size = self.size_msg_hdr + len(msg_payload) + 12
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
 		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
 
@@ -161,7 +164,7 @@ class SiFT_MTP:
 		# initailizing values for login request
 		temp_key = Random.get_random_bytes(32)
 
-		msg_hdr_sqn = b'\x00\x01'
+		msg_hdr_sqn = self.msg_sqn.to_bytes(length=2, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(6)
 		msg_hdr_rsv = b'\x00\x00'
 
@@ -205,12 +208,14 @@ class SiFT_MTP:
 		# try to send
 		try:
 			self.send_bytes(msg_hdr + encrypted_payload + authtag + encrypted_temp_key)
+			self.msg_sqn += 1
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
 		# must pass the temp key used to encrypt login req for decrypting login res later
 		return temp_key
 	
+
 	# receives the login response sent by the server
 	def receive_login_res(self, key):
 		print("Receiving login response ... receive_login_res()")
@@ -229,6 +234,9 @@ class SiFT_MTP:
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
+		
+		if parsed_msg_hdr['sqn'] != b'\x00\x01':
+			raise SiFT_MTP_Error('Login Response SQN number is not 1')
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 		
@@ -271,6 +279,7 @@ class SiFT_MTP:
 
 		return parsed_msg_hdr['typ'], payload
 	
+
 	# sets the final_key to the key derived from the login protocol
 	def set_key(self, key):
 		self.final_key = key

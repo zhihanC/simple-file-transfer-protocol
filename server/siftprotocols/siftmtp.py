@@ -49,6 +49,8 @@ class SiFT_MTP:
 		# --------- STATE ------------
 		self.peer_socket = peer_socket
 		self.final_key = bytes()
+		self.msg_sqn = 1
+		self.last_receieved_sqn = 0
 
 	# parses a message header and returns a dictionary containing the header fields
 	def parse_msg_header(self, msg_hdr):
@@ -88,6 +90,7 @@ class SiFT_MTP:
 
 
 	# builds and sends message of a given type using the provided payload
+	# (only used after login protocol)
 	def send_msg(self, msg_type, msg_payload):
 		
 		# build message
@@ -170,6 +173,9 @@ class SiFT_MTP:
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
+		
+		if parsed_msg_hdr['sqn'] != b'\x00\x01':
+			raise SiFT_MTP_Error('Login Request SQN number is not 1')
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
@@ -241,7 +247,7 @@ class SiFT_MTP:
 		print("Sending login response ... send_login_res()")
 
 		# initailizing values for login response
-		msg_hdr_sqn = b'\x00\x01'
+		msg_hdr_sqn = self.msg_sqn.to_bytes(length=2, byteorder='big')
 		msg_hdr_rnd = Random.get_random_bytes(6)
 		msg_hdr_rsv = b'\x00\x00'
 
@@ -270,6 +276,7 @@ class SiFT_MTP:
 		# try to send
 		try:
 			self.send_bytes(msg_hdr + encrypted_payload + authtag)
+			self.msg_sqn += 1
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
