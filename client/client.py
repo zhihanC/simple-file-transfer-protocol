@@ -11,7 +11,13 @@ from siftprotocols.siftdnl import SiFT_DNL, SiFT_DNL_Error
 # ----------- CONFIG -------------
 server_ip = '127.0.0.1' # localhost
 # server_ip = '192.168.x.y'
+# server_ip = '192.168.21.206'
 server_port = 5150
+
+# Testing with other people's machines: 
+# Comment out line 12, uncomment and change line 14 to their IP address
+# Download their public keys into client/siftprotocols
+# Change line 226 in client/siftprotocols/siftmtp.py 
 # --------------------------------
 
 class SiFTShell(cmd.Cmd):

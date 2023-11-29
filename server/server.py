@@ -15,7 +15,13 @@ class Server:
         self.server_rootdir = './users/'
         self.server_ip = socket.gethostbyname('localhost')
         # self.server_ip = socket.gethostbyname(socket.gethostname())
+        # self.server_ip = '192.168.21.202'
         self.server_port = 5150
+
+        # Testing with other people's machines: 
+        # Comment out line 16, uncomment and change line 18 to your IP address
+        # Send your public key to them through a secure channel
+
         # -------------------------------------------------------------
         self.server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.server_socket.bind((self.server_ip, self.server_port))
