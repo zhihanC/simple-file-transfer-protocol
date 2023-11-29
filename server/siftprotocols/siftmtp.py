@@ -238,6 +238,8 @@ class SiFT_MTP:
 
 		if len(encrypted_payload) != msg_len - (self.size_msg_hdr + 12 + 256): 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
+		
+		self.last_receieved_sqn += 1
 
 		return parsed_msg_hdr['typ'], payload, temp_key
 
