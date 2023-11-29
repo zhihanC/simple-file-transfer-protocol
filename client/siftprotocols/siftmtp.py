@@ -95,23 +95,39 @@ class SiFT_MTP:
 	# (only used after login protocol)
 	def send_msg(self, msg_type, msg_payload):
 
+		# initializing values for message header
+		msg_hdr_sqn = self.msg_sqn.to_bytes(length=2, byteorder='big')
+		msg_hdr_rnd = Random.get_random_bytes(6)
+		msg_hdr_rsv = b'\x00\x00'
+
 		# build message
 		msg_size = self.size_msg_hdr + len(msg_payload) + 12
 		msg_hdr_len = msg_size.to_bytes(self.size_msg_hdr_len, byteorder='big')
-		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len
+		msg_hdr = self.msg_hdr_ver + msg_type + msg_hdr_len + msg_hdr_sqn + msg_hdr_rnd + msg_hdr_rsv
+
+		# encrypting the message with AES in GCM mode
+		nonce = msg_hdr_sqn + msg_hdr_rnd
+		authtag_length = 12
+		AE = AES.new(self.final_key, AES.MODE_GCM, nonce=nonce, mac_len=authtag_length)
+		AE.update(msg_hdr)
+		encrypted_payload, authtag = AE.encrypt_and_digest(msg_payload)
 
 		# DEBUG 
 		if self.DEBUG:
 			print('MTP message to send (' + str(msg_size) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_payload)) + '): ')
-			print(msg_payload.hex())
+			print('EPD (' + str(len(encrypted_payload)) + '): ')
+			print(encrypted_payload.hex())
+			print('MAC (' + str(len(authtag)) + '): ')
+			print(authtag.hex())
+			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag)}")
 			print('------------------------------------------')
 		# DEBUG 
 
 		# try to send
 		try:
-			self.send_bytes(msg_hdr + msg_payload)
+			self.send_bytes(msg_hdr + encrypted_payload + authtag)
+			self.msg_sqn += 1
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to send message to peer --> ' + e.err_msg)
 
@@ -134,27 +150,52 @@ class SiFT_MTP:
 
 		if parsed_msg_hdr['typ'] not in self.msg_types:
 			raise SiFT_MTP_Error('Unknown message type found in message header')
+		
+		if parsed_msg_hdr['sqn'] <= self.last_receieved_sqn.to_bytes(length=2, byteorder='big'):
+			raise SiFT_MTP_Error('Message SQN number is <= the last received SQN number')
 
 		msg_len = int.from_bytes(parsed_msg_hdr['len'], byteorder='big')
 
 		try:
-			msg_body = self.receive_bytes(msg_len - self.size_msg_hdr)
+			encrypted_payload = self.receive_bytes(msg_len - (self.size_msg_hdr + 12))
 		except SiFT_MTP_Error as e:
 			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+		
+		try:
+			authtag = self.receive_bytes(12)
+		except SiFT_MTP_Error as e:
+			raise SiFT_MTP_Error('Unable to receive message body --> ' + e.err_msg)
+		
+		# decrypting the encrypted payload with the temp_key
+		print("Decryption and authentication tag verification is attempted...")
+		nonce = parsed_msg_hdr['sqn'] + parsed_msg_hdr['rnd']
+		AE = AES.new(self.final_key, AES.MODE_GCM, nonce=nonce, mac_len=12)
+		AE.update(msg_hdr)
+		try:
+				payload = AE.decrypt_and_verify(encrypted_payload, authtag)
+		except Exception as e:
+				print("Error: Operation failed!")
+				print("Processing completed.")
+				sys.exit(1)
+		print("Operation was successful: message is intact, content is decrypted.")
 
 		# DEBUG 
 		if self.DEBUG:
 			print('MTP message received (' + str(msg_len) + '):')
 			print('HDR (' + str(len(msg_hdr)) + '): ' + msg_hdr.hex())
-			print('BDY (' + str(len(msg_body)) + '): ')
-			print(msg_body.hex())
+			print('BDY (' + str(len(encrypted_payload)) + '): ')
+			print(encrypted_payload.hex())
+			print('MAC (' + str(len(authtag)) + '): ')
+			print(authtag.hex())
 			print('------------------------------------------')
 		# DEBUG 
 
-		if len(msg_body) != msg_len - self.size_msg_hdr: 
+		if len(payload) != msg_len - (self.size_msg_hdr + 12): 
 			raise SiFT_MTP_Error('Incomplete message body reveived')
 
-		return parsed_msg_hdr['typ'], msg_body
+		self.last_receieved_sqn += 1
+
+		return parsed_msg_hdr['typ'], payload
 
 
 	# builds and sends login message using the provided payload
