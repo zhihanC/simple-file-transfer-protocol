@@ -1,6 +1,6 @@
 # Simple File Transfer Protocol (SiFTv1.0)
 
-By Zhihan Chen (Lasted edited March 2023)
+By Zhihan Chen (Lasted edited March 2024)
 
 ## Overview
 
@@ -22,7 +22,7 @@ SiFTv1.0 utilizes 5 sub-protocols: Message Transfer Protocol, Login Protocol, Co
 All SiFT v1.0 MTP messages have a 16-byte header, an encrypted payload, and the authentication tag (with the exception of the login request within the Login Protocol). The header consists of the following fields:
 
 - **ver**: A 2-byte _version number_ field, which for SiFTv1.0 is the byte sequence `01 00`.
-- **typ**: A 2-byte _message type_ field that specifies the type of the payload in the message. Refer to the more detailed [specifications page](https://github.com/zhihanC/simple-file-transfer-protocol/blob/main/_specification/SiFT%20v1.0%20specification.md) for what kind of types are supported.
+- **typ**: A 2-byte _message type_ field that specifies the type of the payload in the message. Refer to the more detailed [project specifications page](https://github.com/zhihanC/simple-file-transfer-protocol/blob/main/_specification/SiFT%20v1.0%20specification.md) for what kind of types are supported.
 - **len**: A 2-byte _message length_ field that contains the length of the entire message (including the header) in bytes (using big endian byte order).
 - **sqn**: A 2-byte _message sequence number_ field that contains the sequence number of this message (using big endian byte order).
 - **rnd**: A 6-byte _random_ field that contains freshly generated random bytes.
@@ -86,19 +86,25 @@ Upon receiving the login request, the server will decrypt the temporary 32-byte 
 
 If the SHA-256 hash of the login request that the server sent back in the login response matches the one stored by the client, the handshake is a success. The final key is derived using the HKDF key derivation function with SHA-256 as the internal hash function. The random 16-bytes sent by the client and the random 16-bytes sent by the server are concatonated together and used as initial key material, and the SHA-256 hash of the login request is used as salt. All subsequent MTP messages are protected with this final key.
 
-The Overview Section of the ReadMe is my attempt to highlight the most important parts of SiFTv1.0. For more information, please read the [specifications page](https://github.com/zhihanC/simple-file-transfer-protocol/blob/main/_specification/SiFT%20v1.0%20specification.md) provided by Professor Buttyán.
+The Overview Section of the ReadMe is my attempt to highlight the most important parts of SiFTv1.0. For more information, please read the [project specifications page](https://github.com/zhihanC/simple-file-transfer-protocol/blob/main/_specification/SiFT%20v1.0%20specification.md) provided by Professor Buttyán.
 
-## Usage
+## Usage and Testing
 
 ### Running SiFTv1.0 Locally
 
-Run server/server.py and client/client.py in two separate terminals. Make sure to run the server before running the client so that the client can connect!
+- Run server/server.py and client/client.py in two separate terminals. Make sure to run the server before running the client so that the client can connect!
 
 ### Running SiFTv1.0 with other machines
 
 - If you are running the server, make sure that the client machine has access to your public key. The public key included in this repo is client/siftprotocols/server_pubkey.pem. If you would like to use your own keypair, make sure to add your own private key in server/siftprotocols. Be sure to modify load_keypair() within server/siftprotocols/siftmtp.py to use the new private key to decrypt the temporary AES key of the login request as well. Next, modify the Server class constructor within server/server.py. Change server_ip to whatever your IP address is instead of using localhost.
 
 - If you are running the client, make sure you have access to the server's public key. Be sure to modify send_login_request() within client/siftprotocols/siftmtp.py to encrypt the temporary AES key with the server's public key. Next, modify the config section of client/client.py. Instead of using localhost for server_ip, use the server's IP address instead.
+
+### Helpful Tip: Corresponding Usernames and Passwords in SiFTv1.0
+
+- alice -> aaa
+- bob -> bbb
+- charlie -> ccc
 
 ## Acknowledgements
 

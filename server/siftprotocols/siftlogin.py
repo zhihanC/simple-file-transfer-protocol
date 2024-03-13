@@ -26,7 +26,7 @@ class SiFT_LOGIN:
 
     # sets user passwords dictionary (to be used by the server)
     def set_server_users(self, users):
-        print("Setting server users ... set_server_users()")
+        print("Setting server users ...")
         self.server_users = users
 
 
@@ -52,7 +52,7 @@ class SiFT_LOGIN:
 
     # builds a login response from a dictionary
     def build_login_res(self, login_res_struct):
-        print("Building login response ... build_login_res()")
+        print("Building login response ...")
         login_res_str = login_res_struct['request_hash'].hex() 
         login_res_str += self.delimiter + login_res_struct['server_random'].hex()
         return login_res_str.encode(self.coding)
@@ -68,7 +68,7 @@ class SiFT_LOGIN:
 
     # check correctness of a provided password
     def check_password(self, pwd, usr_struct):
-        print("Checking password ... check_password()")
+        print("Checking password ...")
         pwdhash = PBKDF2(pwd, usr_struct['salt'], len(usr_struct['pwdhash']), count=usr_struct['icount'], hmac_hash_module=SHA256)
         if pwdhash == usr_struct['pwdhash']: return True
         return False
@@ -76,7 +76,7 @@ class SiFT_LOGIN:
 
     # handles login process (to be used by the server)
     def handle_login_server(self):
-        print("Handling login ... handle_login_server()")
+        print("Handling login ...")
         if not self.server_users:
             raise SiFT_LOGIN_Error('User database is required for handling login at server')
 

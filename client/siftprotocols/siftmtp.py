@@ -120,7 +120,6 @@ class SiFT_MTP:
 			print(encrypted_payload.hex())
 			print('MAC (' + str(len(authtag)) + '): ')
 			print(authtag.hex())
-			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag)}")
 			print('------------------------------------------')
 		# DEBUG 
 
@@ -200,7 +199,7 @@ class SiFT_MTP:
 
 	# builds and sends login message using the provided payload
 	def send_login_req(self, msg_type, msg_payload):
-		print("Sending login request ... send_login_req()")
+		print("Sending login request ...")
 
 		# initailizing values for login request
 		temp_key = Random.get_random_bytes(32)
@@ -242,7 +241,6 @@ class SiFT_MTP:
 			print(authtag.hex())
 			print('ETK (' + str(len(encrypted_temp_key)) + '): ')
 			print(encrypted_temp_key.hex())
-			print(f"Length of the actual whole message is {self.size_msg_hdr + len(encrypted_payload) + len(authtag) + len(encrypted_temp_key)}")
 			print('------------------------------------------')
 		# DEBUG 
 
@@ -259,7 +257,7 @@ class SiFT_MTP:
 
 	# receives the login response sent by the server
 	def receive_login_res(self, key):
-		print("Receiving login response ... receive_login_res()")
+		print("Receiving login response ...")
 		try:
 			msg_hdr = self.receive_bytes(self.size_msg_hdr)
 		except SiFT_MTP_Error as e:

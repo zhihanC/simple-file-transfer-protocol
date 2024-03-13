@@ -196,7 +196,6 @@ class SiFTShell(cmd.Cmd):
 if __name__ == '__main__':
 
     try:
-        print("in client()")
         sckt = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         sckt.connect((server_ip, server_port))
     except:
