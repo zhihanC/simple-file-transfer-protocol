@@ -1,6 +1,6 @@
 # Simple File Transfer Protocol (SiFTv1.0)
 
-By Zhihan Chen (December 2023)
+By Zhihan Chen (Lasted edited March 2023)
 
 ## Overview
 
@@ -86,10 +86,24 @@ Upon receiving the login request, the server will decrypt the temporary 32-byte 
 
 If the SHA-256 hash of the login request that the server sent back in the login response matches the one stored by the client, the handshake is a success. The final key is derived using the HKDF key derivation function with SHA-256 as the internal hash function. The random 16-bytes sent by the client and the random 16-bytes sent by the server are concatonated together and used as initial key material, and the SHA-256 hash of the login request is used as salt. All subsequent MTP messages are protected with this final key.
 
+The Overview Section of the ReadMe is my attempt to highlight the most important parts of SiFTv1.0. For more information, please read the [specifications page](https://github.com/zhihanC/simple-file-transfer-protocol/blob/main/_specification/SiFT%20v1.0%20specification.md) provided by Professor Buttyán.
+
 ## Usage
 
-This repo has everything it needs to run the client and the server! More details will be added about adapting this for other machines ...
+### Running SiFTv1.0 Locally
+
+Run server/server.py and client/client.py in two separate terminals. Make sure to run the server before running the client so that the client can connect!
+
+### Running SiFTv1.0 with other machines
+
+- If you are running the server, make sure that the client machine has access to your public key. The public key included in this repo is client/siftprotocols/server_pubkey.pem. If you would like to use your own keypair, make sure to add your own private key in server/siftprotocols. Be sure to modify load_keypair() within server/siftprotocols/siftmtp.py to use the new private key to decrypt the temporary AES key of the login request as well. Next, modify the Server class constructor within server/server.py. Change server_ip to whatever your IP address is instead of using localhost.
+
+- If you are running the client, make sure you have access to the server's public key. Be sure to modify send_login_request() within client/siftprotocols/siftmtp.py to encrypt the temporary AES key with the server's public key. Next, modify the config section of client/client.py. Instead of using localhost for server_ip, use the server's IP address instead.
 
 ## Acknowledgements
 
-A special thank you to Professor Buttyán and everyone at AIT!
+A special thanks to Professor Buttyán and everyone at AIT!
+
+## License
+
+Feel free to view and test my code as a learning resource! However, since this is technically still a homework assignment, please do not copy, distribute, or modify this code without permission!
