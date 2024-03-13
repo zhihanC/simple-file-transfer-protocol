@@ -52,8 +52,8 @@ The payload is encrypted using AES in GCM mode with the authentication tag attac
 
 ```mermaid
 sequenceDiagram
-    client->>server: command_req
-    server->>client: command_res
+    client->>server: login_req
+    server->>client: login_res
 ```
 
 SiFTv1.0 assumes that the client knows the server's public key and only the server with the corresponding private key would be able to decrypt and respond properly to the message. Since there is no shared secret symmetric key yet, the client and server must perform a handshake first. The client first sends the server a login request encrypted with a temporary 32-byte AES key. The temporary key is encrypted with RSA-OAEP with the server's 2048-bit RSA public key and attached at the end of the message. The login request's payload contains: the timestamp, username, password, and a randomly generated 16-byte value. The client will also compute the SHA-256 hash of the login request and store it for later verification. The format of a login request is show below:
